@@ -12,12 +12,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,8 +46,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun StopwatchApp(stopwatchViewModel: StopwatchViewModel = viewModel()) {
-    val state by stopwatchViewModel.state
-
     val modifier = Modifier
         .fillMaxWidth()
 
@@ -90,8 +93,9 @@ fun Title(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun Gauge(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = Modifier) {
+    val state by stopwatchViewModel.state //TODO 只检测其中的 elapsedTime
     /*Box {
-        CircularProgressIndicator( // TODO
+        CircularProgressIndicator( //TODO
             progress = 0.5f
         )
         Text(
@@ -103,7 +107,7 @@ fun Gauge(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = Modifier)
         // verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        CircularProgressIndicator( // TODO
+        CircularProgressIndicator( //TODO
             progress = TimeUtils.minuteProgress(stopwatchViewModel.state.value.elapsedTime)
         )
         Spacer(modifier = Modifier.height(10.dp))
@@ -115,6 +119,7 @@ fun Gauge(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = Modifier)
 
 @Composable
 fun ControlButtons(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = Modifier) {
+    val state by stopwatchViewModel.state //TODO 只检测其中的 isRunning
     Row (
         // modifier = modifier,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -122,7 +127,7 @@ fun ControlButtons(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = 
     ) {
         Button(onClick = {
             if (stopwatchViewModel.state.value.isRunning)
-                // stopwatchViewModel.lap()
+                stopwatchViewModel.lap()
             else
                 stopwatchViewModel.reset()
         }) {
@@ -146,12 +151,25 @@ fun ControlButtons(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = 
 
 @Composable
 fun Laps(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = Modifier) {
-    Column (
-
+    val lapTimeList = stopwatchViewModel.lapTimeList //TODO 不能用 by, 但是这么写也被 observe 了
+    val listState = rememberLazyListState()
+    // 添加新 lap 时, 滚动到最新的 lap
+    LaunchedEffect(lapTimeList.size) {
+        listState.animateScrollToItem(index = if (lapTimeList.size == 0) 0 else lapTimeList.size - 1)
+    }
+    LazyColumn (
+        modifier = modifier,
+        state = listState,
+        reverseLayout = true
     ) {
-        Lap(3, "xx:xx:xxx", modifier)
-        Lap(2, "xx:xx:xxx", modifier)
-        Lap(1, "xx:xx:xxx", modifier)
+        itemsIndexed(lapTimeList) { index, lapTime ->
+            Lap(
+                lapId = index + 1,
+                time = TimeUtils.long2String(lapTime),
+                modifier = modifier
+                    .padding(top = 10.dp, bottom = 10.dp)
+            )
+        }
     }
 }
 
@@ -168,7 +186,7 @@ fun Lap(lapId: Int, time: String, modifier: Modifier = Modifier) {
 
 @Preview(showBackground = true)
 @Composable
-fun GreetingPreview() {
+fun StopwatchPreview() {
     StopwatchTheme {
         StopwatchApp()
     }
