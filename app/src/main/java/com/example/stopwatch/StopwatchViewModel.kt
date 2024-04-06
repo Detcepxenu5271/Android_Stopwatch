@@ -17,11 +17,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+/**
+ * Stopwatch 的状态, 用于直接更新 UI (除了 lap 列表)
+ *
+ * @property isRunning
+ * @property elapsedTime
+ */
 data class StopwatchState(
     var isRunning: Boolean = false,
     var elapsedTime: Long = 0L,
 )
 
+/**
+ * Stopwatch 的 ViewModel
+ *
+ * @property userPreferencesRepository
+ */
 class StopwatchViewModel (
     private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
@@ -48,33 +59,17 @@ class StopwatchViewModel (
     // 通过读取 userPreferencesRepository 初始化相关数据
     init {
         CoroutineScope(Dispatchers.Main).launch {
-            /*userPreferencesRepository.isRunning.first().let {
-                if (it) state.value = state.value.copy(it, lastPauseElapsedTime + SystemClock.uptimeMillis() - lastStartTime)
-                else state.value = state.value.copy(it, lastPauseElapsedTime)
-                // state.value = state.value.copy(isRunning = it)
-            }
-            userPreferencesRepository.lastStartTime.first().let {
-                lastStartTime = it
-            }
-            userPreferencesRepository.lastPauseElapsedTime.first().let {
-                lastPauseElapsedTime = it
-            }
-            userPreferencesRepository.lastLapElapsedTime.first().let {
-                lastLapElapsedTime = it
-            }
-            userPreferencesRepository.lapTimeList.first().let {
-                lapTimeList.addAll(it)
-            }*/
-            // First, retrieve all the values from userPreferencesRepository
+            // 从 userPreferencesRepository 读取持久化的数据
             val isRunning = userPreferencesRepository.isRunning.first()
             lastStartTime = userPreferencesRepository.lastStartTime.first()
             lastPauseElapsedTime = userPreferencesRepository.lastPauseElapsedTime.first()
             lastLapElapsedTime = userPreferencesRepository.lastLapElapsedTime.first()
             lapTimeList.addAll(userPreferencesRepository.lapTimeList.first())
 
-            // Then, use the retrieved values to update state
+            // 更新 isRunning 状态, 计算当前时间
             if (isRunning) {
                 state.value = state.value.copy(isRunning, lastPauseElapsedTime + SystemClock.uptimeMillis() - lastStartTime)
+                // 启动秒表的更新
                 handler.postDelayed(runnable, 0)
             } else {
                 state.value = state.value.copy(isRunning, lastPauseElapsedTime)
@@ -95,10 +90,12 @@ class StopwatchViewModel (
         }
     }
 
+    // 获取当前 lap 的计时
     private fun getCurLapTime(): Long {
         return (lastPauseElapsedTime + SystemClock.uptimeMillis() - lastStartTime) - lastLapElapsedTime
     }
 
+    // 更新计时数据, 通过 state 更新 UI
     private val runnable = object : Runnable {
         override fun run() {
             // 更新 state 时间和当前 lap 时间
@@ -110,6 +107,7 @@ class StopwatchViewModel (
         }
     }
 
+    // 开始/继续计时
     fun start() {
         // 如果是首次开始, 添加 lap 1
         if (lastStartTime == 0L) {
@@ -127,6 +125,7 @@ class StopwatchViewModel (
         handler.postDelayed(runnable, 0)
     }
 
+    // 暂停计时
     fun pause() {
         // 记录本次暂停已经过的时间, 更新 state 时间并设为停止运行
         lastPauseElapsedTime += SystemClock.uptimeMillis() - lastStartTime
@@ -137,6 +136,7 @@ class StopwatchViewModel (
         handler.removeCallbacks(runnable)
     }
 
+    // 记录 lap
     fun lap() {
         // 将当前 lap 的时间记录到 list 中
         val curLapTime = getCurLapTime()
@@ -149,6 +149,7 @@ class StopwatchViewModel (
         state.value = state.value.copy(elapsedTime = lastLapElapsedTime)
     }
 
+    // 重置计时和 lap
     fun reset() {
         // 重置 state
         state.value = StopwatchState()

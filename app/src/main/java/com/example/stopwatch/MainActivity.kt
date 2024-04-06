@@ -4,23 +4,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -30,7 +25,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -64,7 +58,7 @@ fun StopwatchApp(stopwatchViewModel: StopwatchViewModel = viewModel(factory = St
         state = state,
         lapTimeList = lapTimeList,
         onLapResetClick = { if (state.isRunning) stopwatchViewModel.lap() else stopwatchViewModel.reset() },
-        onStartStopClick = { if (state.isRunning) stopwatchViewModel.pause() else stopwatchViewModel.start() }
+        onStopStartClick = { if (state.isRunning) stopwatchViewModel.pause() else stopwatchViewModel.start() }
     )
 }
 
@@ -74,14 +68,14 @@ fun StopwatchApp(stopwatchViewModel: StopwatchViewModel = viewModel(factory = St
  * @param state [StopwatchViewModel] 中的状态, 包含 isRunning 和 elapsedTime
  * @param lapTimeList [StopwatchViewModel] 中各 lap 的时间
  * @param onLapResetClick Lap/Reset 按钮的 onClick 函数
- * @param onStartStopClick Start/Stop 按钮的 onClick 函数
+ * @param onStopStartClick Stop/Start 按钮的 onClick 函数
  */
 @Composable
 fun StopwatchScreen(
     state: StopwatchState,
     lapTimeList: List<Long>,
     onLapResetClick: () -> Unit,
-    onStartStopClick: () -> Unit
+    onStopStartClick: () -> Unit
 ) {
     // 默认宽度为最大
     val modifier = Modifier
@@ -107,7 +101,7 @@ fun StopwatchScreen(
             ControlButtons(
                 state = state,
                 onLapResetClick = onLapResetClick,
-                onStartStopClick = onStartStopClick,
+                onStopStartClick = onStopStartClick,
                 modifier = modifier
             )
             Laps(
@@ -118,18 +112,29 @@ fun StopwatchScreen(
     }
 }
 
+/**
+ * 标题
+ *
+ * @param text
+ * @param modifier
+ */
 @Composable
 fun Title(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
         // textAlign = TextAlign.Center,
-        fontSize = 36.sp,
+        fontSize = 36.sp
     )
 }
 
+/**
+ * 计时表, 包括分钟进度条和总时间
+ *
+ * @param state
+ * @param modifier
+ */
 @Composable
 fun Gauge(state: StopwatchState, modifier: Modifier = Modifier) {
-    // val state by stopwatchViewModel.state //TODO 只检测其中的 elapsedTime
     Box (
         modifier = modifier
             .padding(top = 10.dp, bottom = 10.dp),
@@ -138,10 +143,10 @@ fun Gauge(state: StopwatchState, modifier: Modifier = Modifier) {
         CircularProgressBar(
             percentage = TimeUtils.minuteProgress(state.elapsedTime),
             radius = 100.dp,
-            color = Color.Blue,
+            fgColor = Color.Blue,
+            bgColor = Color.LightGray,
             strokeWidth = 16.dp
         )
-        Spacer(modifier = Modifier.height(10.dp))
         Text(
             text = TimeUtils.long2String(state.elapsedTime),
             fontSize = 24.sp
@@ -149,9 +154,16 @@ fun Gauge(state: StopwatchState, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * 控制按钮, 包括 Lap/Reset 按钮和 Stop/Start 按钮
+ *
+ * @param state
+ * @param onLapResetClick
+ * @param onStopStartClick
+ * @param modifier
+ */
 @Composable
-fun ControlButtons(state: StopwatchState, onLapResetClick: () -> Unit, onStartStopClick: () -> Unit, modifier: Modifier = Modifier) {
-    // val state by stopwatchViewModel.state //TODO 只检测其中的 isRunning
+fun ControlButtons(state: StopwatchState, onLapResetClick: () -> Unit, onStopStartClick: () -> Unit, modifier: Modifier = Modifier) {
     Row (
         modifier = modifier,
         horizontalArrangement = Arrangement.SpaceEvenly,
@@ -163,8 +175,7 @@ fun ControlButtons(state: StopwatchState, onLapResetClick: () -> Unit, onStartSt
                 fontSize = 24.sp
             )
         }
-        Spacer(modifier = Modifier.width(30.dp))
-        Button(onClick = onStartStopClick) {
+        Button(onClick = onStopStartClick) {
             Text(
                 text = if (state.isRunning) "Stop" else "Start",
                 fontSize = 24.sp
@@ -173,9 +184,15 @@ fun ControlButtons(state: StopwatchState, onLapResetClick: () -> Unit, onStartSt
     }
 }
 
+/**
+ * Lap 列表
+ *
+ * @param lapTimeList
+ * @param modifier
+ */
 @Composable
 fun Laps(lapTimeList: List<Long>, modifier: Modifier = Modifier) {
-    // val lapTimeList = stopwatchViewModel.lapTimeList //TODO 不能用 by, 但是这么写也被 observe 了
+    // 记录 LazyColumn 的列表状态, 用于自动滚动到最新 lap
     val listState = rememberLazyListState()
     // 添加新 lap 时, 滚动到最新的 lap
     LaunchedEffect(lapTimeList.size) {
@@ -200,6 +217,13 @@ fun Laps(lapTimeList: List<Long>, modifier: Modifier = Modifier) {
     }
 }
 
+/**
+ * 单个 lap
+ *
+ * @param lapId
+ * @param time
+ * @param modifier
+ */
 @Composable
 fun Lap(lapId: Int, time: String, modifier: Modifier = Modifier) {
     Row (
@@ -223,7 +247,7 @@ fun StopwatchPreview() {
             state = mockState,
             lapTimeList = mockLapTimeList,
             onLapResetClick = {},
-            onStartStopClick = {}
+            onStopStartClick = {}
         )
     }
 }
