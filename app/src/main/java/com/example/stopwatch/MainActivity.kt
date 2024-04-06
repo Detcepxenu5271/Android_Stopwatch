@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
@@ -45,7 +44,25 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun StopwatchApp(stopwatchViewModel: StopwatchViewModel = viewModel()) {
+fun StopwatchApp(stopwatchViewModel: StopwatchViewModel = viewModel(factory = StopwatchViewModel.Factory)) {
+    val state by stopwatchViewModel.state
+    val lapTimeList = stopwatchViewModel.lapTimeList
+
+    StopwatchScreen(
+        state = state,
+        lapTimeList = lapTimeList,
+        onLapResetClick = { if (state.isRunning) stopwatchViewModel.lap() else stopwatchViewModel.reset() },
+        onStartStopClick = { if (state.isRunning) stopwatchViewModel.pause() else stopwatchViewModel.start() }
+    )
+}
+
+@Composable
+fun StopwatchScreen(
+    state: StopwatchState,
+    lapTimeList: List<Long>,
+    onLapResetClick: () -> Unit,
+    onStartStopClick: () -> Unit
+) {
     val modifier = Modifier
         .fillMaxWidth()
 
@@ -65,17 +82,19 @@ fun StopwatchApp(stopwatchViewModel: StopwatchViewModel = viewModel()) {
             )
             Spacer(modifier = modifier.height(20.dp))
             Gauge(
-                stopwatchViewModel = stopwatchViewModel,
-                modifier = modifier
+                state = state,
+                modifier = modifier,
             )
             Spacer(modifier = modifier.height(20.dp))
             ControlButtons(
-                stopwatchViewModel = stopwatchViewModel,
+                state = state,
+                onLapResetClick = onLapResetClick,
+                onStartStopClick = onStartStopClick,
                 modifier = modifier
             )
             Spacer(modifier = modifier.height(20.dp))
             Laps(
-                stopwatchViewModel = stopwatchViewModel,
+                lapTimeList = lapTimeList,
                 modifier = modifier
             )
         }
@@ -92,8 +111,8 @@ fun Title(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun Gauge(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = Modifier) {
-    val state by stopwatchViewModel.state //TODO 只检测其中的 elapsedTime
+fun Gauge(state: StopwatchState, modifier: Modifier = Modifier) {
+    // val state by stopwatchViewModel.state //TODO 只检测其中的 elapsedTime
     /*Box {
         CircularProgressIndicator( //TODO
             progress = 0.5f
@@ -108,50 +127,40 @@ fun Gauge(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = Modifier)
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         CircularProgressIndicator( //TODO
-            progress = TimeUtils.minuteProgress(stopwatchViewModel.state.value.elapsedTime)
+            progress = TimeUtils.minuteProgress(state.elapsedTime)
         )
         Spacer(modifier = Modifier.height(10.dp))
         Text(
-            text = TimeUtils.long2String(stopwatchViewModel.state.value.elapsedTime)
+            text = TimeUtils.long2String(state.elapsedTime)
         )
     }
 }
 
 @Composable
-fun ControlButtons(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = Modifier) {
-    val state by stopwatchViewModel.state //TODO 只检测其中的 isRunning
+fun ControlButtons(state: StopwatchState, onLapResetClick: () -> Unit, onStartStopClick: () -> Unit, modifier: Modifier = Modifier) {
+    // val state by stopwatchViewModel.state //TODO 只检测其中的 isRunning
     Row (
         // modifier = modifier,
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Button(onClick = {
-            if (stopwatchViewModel.state.value.isRunning)
-                stopwatchViewModel.lap()
-            else
-                stopwatchViewModel.reset()
-        }) {
+        Button(onClick = onLapResetClick) {
             Text(
-                text = if (stopwatchViewModel.state.value.isRunning) "Lap" else "Reset"
+                text = if (state.isRunning) "Lap" else "Reset"
             )
         }
         Spacer(modifier = Modifier.width(30.dp))
-        Button(onClick = {
-            if (stopwatchViewModel.state.value.isRunning)
-                stopwatchViewModel.pause()
-            else
-                stopwatchViewModel.start()
-        }) {
+        Button(onClick = onStartStopClick) {
             Text(
-                text = if (stopwatchViewModel.state.value.isRunning) "Stop" else "Start"
+                text = if (state.isRunning) "Stop" else "Start"
             )
         }
     }
 }
 
 @Composable
-fun Laps(stopwatchViewModel: StopwatchViewModel, modifier: Modifier = Modifier) {
-    val lapTimeList = stopwatchViewModel.lapTimeList //TODO 不能用 by, 但是这么写也被 observe 了
+fun Laps(lapTimeList: List<Long>, modifier: Modifier = Modifier) {
+    // val lapTimeList = stopwatchViewModel.lapTimeList //TODO 不能用 by, 但是这么写也被 observe 了
     val listState = rememberLazyListState()
     // 添加新 lap 时, 滚动到最新的 lap
     LaunchedEffect(lapTimeList.size) {
@@ -187,7 +196,15 @@ fun Lap(lapId: Int, time: String, modifier: Modifier = Modifier) {
 @Preview(showBackground = true)
 @Composable
 fun StopwatchPreview() {
+    val mockState = StopwatchState(true, 17500) // Replace StopwatchState and ... with the actual type and value
+    val mockLapTimeList = listOf<Long>(1100, 2300, 3500, 4700, 5900) // Replace List<Long> and ... with the actual type and value
+
     StopwatchTheme {
-        StopwatchApp()
+        StopwatchScreen(
+            state = mockState,
+            lapTimeList = mockLapTimeList,
+            onLapResetClick = {},
+            onStartStopClick = {}
+        )
     }
 }

@@ -18,4 +18,13 @@ object TimeUtils {
     fun minuteProgress(elapsedTime: Long): Float {
         return (elapsedTime % (60 * 1000) / 1000f) / 60f
     }
+
+    fun listLongToString(list: List<Long>): String {
+        return list.joinToString(separator = ",")
+    }
+
+    fun stringToListLong(str: String?): List<Long>? {
+        if (str == null) return null
+        return str.split(",").map { it.toLong() }
+    }
 }
