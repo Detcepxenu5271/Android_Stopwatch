@@ -1,15 +1,19 @@
 package com.example.stopwatch
 
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -25,9 +29,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.stopwatch.ui.compose.CircularProgressBar
@@ -53,17 +59,28 @@ class MainActivity : ComponentActivity() {
 fun StopwatchApp(stopwatchViewModel: StopwatchViewModel = viewModel(factory = StopwatchViewModel.Factory)) {
     val state by stopwatchViewModel.state
     val lapTimeList = stopwatchViewModel.lapTimeList
+    val orientation = LocalConfiguration.current.orientation
 
-    StopwatchScreen(
-        state = state,
-        lapTimeList = lapTimeList,
-        onLapResetClick = { if (state.isRunning) stopwatchViewModel.lap() else stopwatchViewModel.reset() },
-        onStopStartClick = { if (state.isRunning) stopwatchViewModel.pause() else stopwatchViewModel.start() }
-    )
+    if (orientation == Configuration.ORIENTATION_PORTRAIT) {
+        StopwatchScreen(
+            state = state,
+            lapTimeList = lapTimeList,
+            onLapResetClick = { if (state.isRunning) stopwatchViewModel.lap() else stopwatchViewModel.reset() },
+            onStopStartClick = { if (state.isRunning) stopwatchViewModel.pause() else stopwatchViewModel.start() }
+        )
+    } else if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        StopwatchScreenLandscape(
+            state = state,
+            lapTimeList = lapTimeList,
+            onLapResetClick = { if (state.isRunning) stopwatchViewModel.lap() else stopwatchViewModel.reset() },
+            onStopStartClick = { if (state.isRunning) stopwatchViewModel.pause() else stopwatchViewModel.start() }
+        )
+    }
+
 }
 
 /**
- * Stopwatch 的界面
+ * Stopwatch 的界面 (竖屏)
  *
  * @param state [StopwatchViewModel] 中的状态, 包含 isRunning 和 elapsedTime
  * @param lapTimeList [StopwatchViewModel] 中各 lap 的时间
@@ -113,6 +130,75 @@ fun StopwatchScreen(
 }
 
 /**
+ * Stopwatch 的横屏界面
+ *
+ * @param state
+ * @param lapTimeList
+ * @param onLapResetClick
+ * @param onStopStartClick
+ */
+@Composable
+fun StopwatchScreenLandscape(
+    state: StopwatchState,
+    lapTimeList: List<Long>,
+    onLapResetClick: () -> Unit,
+    onStopStartClick: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Row (
+            modifier = Modifier.padding(20.dp),
+            horizontalArrangement = Arrangement.SpaceAround
+        ) {
+            Column (
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Title(
+                    text = stringResource(R.string.title),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.weight(1f)) // 两个 Spacer, 使 Gauge 在 center 位置
+                Gauge(
+                    state = state,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.weight(1f)) // 另一个 Spacer
+            }
+            Column (
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp, Alignment.Top),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Laps(
+                    lapTimeList = lapTimeList,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                )
+                ControlButtons(
+                    state = state,
+                    onLapResetClick = onLapResetClick,
+                    onStopStartClick = onStopStartClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
  * 标题
  *
  * @param text
@@ -135,14 +221,16 @@ fun Title(text: String, modifier: Modifier = Modifier) {
  */
 @Composable
 fun Gauge(state: StopwatchState, modifier: Modifier = Modifier) {
-    Box (
+    BoxWithConstraints (
         modifier = modifier
-            .padding(top = 10.dp, bottom = 10.dp),
+            .padding(10.dp),
         contentAlignment = Alignment.Center
     ) {
+        // 进度条半径为 100.dp, 如果空间不够的话就减小
+        val radius = min(min(maxWidth, maxHeight) / 2, 100.dp)
         CircularProgressBar(
             percentage = TimeUtils.minuteProgress(state.elapsedTime),
-            radius = 100.dp,
+            radius = radius,
             fgColor = Color.Blue,
             bgColor = Color.LightGray,
             strokeWidth = 16.dp
@@ -236,14 +324,36 @@ fun Lap(lapId: Int, time: String, modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(showBackground = true)
+@Preview(
+    showBackground = true
+)
 @Composable
 fun StopwatchPreview() {
-    val mockState = StopwatchState(true, 47500) // Replace StopwatchState and ... with the actual type and value
-    val mockLapTimeList = listOf<Long>(1100, 2300, 3500, 4700, 5900, 30000) // Replace List<Long> and ... with the actual type and value
+    val mockState = StopwatchState(true, 47500)
+    val mockLapTimeList = listOf<Long>(1, 2, 3, 4, 5, 6, 7, 8)
 
     StopwatchTheme {
         StopwatchScreen(
+            state = mockState,
+            lapTimeList = mockLapTimeList,
+            onLapResetClick = {},
+            onStopStartClick = {}
+        )
+    }
+}
+
+@Preview(
+    showBackground = true,
+    heightDp = 500,
+    widthDp = 1000
+)
+@Composable
+fun StopwatchLandscapePreview() {
+    val mockState = StopwatchState(true, 47500)
+    val mockLapTimeList = listOf<Long>(1, 2, 3, 4, 5, 6, 7, 8)
+
+    StopwatchTheme {
+        StopwatchScreenLandscape(
             state = mockState,
             lapTimeList = mockLapTimeList,
             onLapResetClick = {},
